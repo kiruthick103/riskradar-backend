@@ -7,7 +7,6 @@ DEFAULT_DB_PATH = os.path.join(BASE_DIR, "riskradar.db")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH.replace(os.sep, '/')}")
 
 # SQLite needs check_same_thread=False; PostgreSQL needs no extra connect args
-# (sslmode is handled via the connection string ?sslmode=require)
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 else:
@@ -16,7 +15,7 @@ else:
 engine = create_engine(
     DATABASE_URL,
     connect_args=connect_args,
-    pool_pre_ping=True,  # Detect stale connections on PostgreSQL
+    pool_pre_ping=True,
     echo=False
 )
 

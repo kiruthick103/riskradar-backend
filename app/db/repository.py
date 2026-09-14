@@ -67,7 +67,7 @@ class ReportRepository:
             logger.warning(f"Error loading reports from DB: {e}")
 
     def ingest_dataset_reports_if_empty(self):
-        """Ingests reports from Dataset_reports PDFs if available, otherwise seeds from demo_cases.json."""
+        """Ingests all 60 PDF case studies from Dataset_reports if DB is empty."""
         self.load_from_db()
         if len(self._memory_cache) > 0:
             return
@@ -108,7 +108,7 @@ class ReportRepository:
         else:
             # Fallback: seed from bundled demo_cases.json (works on Render / any env without PDFs)
             self._seed_from_demo_json(backend_root)
-
+        
         self.load_from_db()
 
     def _seed_from_demo_json(self, backend_root: str):
@@ -170,8 +170,6 @@ class ReportRepository:
             logger.info(f"Seeded {len(cases)} reports from demo_cases.json")
         except Exception as e:
             logger.warning(f"Failed to seed from demo_cases.json: {e}")
-        
-        self.load_from_db()
 
     def save_report(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Saves or updates a processed report record in database and memory cache."""

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
+from app.telemetry.router import router as telemetry_router
 
 app = FastAPI(
     title="RiskRadar API",
@@ -17,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+app.include_router(telemetry_router, prefix="/api")
 
 @app.get("/")
 def root():
@@ -29,6 +31,7 @@ def root():
             "docs": "/docs",
             "executive_overview": "/api/dashboard/executive-overview",
             "priority_queue": "/api/dashboard/priority-queue",
+            "telemetry": "/api/telemetry/sites-summary",
             "reports": "/api/reports"
         }
     }
