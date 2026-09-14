@@ -9,8 +9,11 @@ from app.schemas.domain import ExtractionResult, SIFAssessment, RuleMapping, Pre
 
 logger = logging.getLogger("riskradar.repository")
 
-# Create tables on startup
-Base.metadata.create_all(bind=engine)
+# Create tables on startup — wrapped so app never crashes if DB is unavailable
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as _db_init_err:
+    logger.warning(f"DB table creation skipped (will use memory cache): {_db_init_err}")
 
 class ReportRepository:
     """
