@@ -67,7 +67,7 @@ class ReportRepository:
             logger.warning(f"Error loading reports from DB: {e}")
 
     def ingest_dataset_reports_if_empty(self):
-        """Ingests all 60 PDF case studies from Dataset_reports if DB is empty."""
+        """Ingests reports from Dataset_reports PDFs if available, otherwise seeds from demo_cases.json."""
         self.load_from_db()
         if len(self._memory_cache) > 0:
             return
@@ -78,10 +78,11 @@ class ReportRepository:
 
         # Resolve project root and candidate Dataset_reports directories
         current_file = os.path.abspath(__file__)
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
         candidate_dirs = [
             "Dataset_reports",
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file)))), "Dataset_reports"),
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_file))), "Dataset_reports"),
+            os.path.join(os.path.dirname(backend_root), "Dataset_reports"),
+            os.path.join(backend_root, "Dataset_reports"),
             r"s:\projects\RISKRADAR DEMO\RISK DEMO\Dataset_reports"
         ]
 
@@ -104,6 +105,71 @@ class ReportRepository:
                     if recs:
                         for r in recs:
                             self.save_report(r)
+        else:
+            # Fallback: seed from bundled demo_cases.json (works on Render / any env without PDFs)
+            self._seed_from_demo_json(backend_root)
+
+        self.load_from_db()
+
+    def _seed_from_demo_json(self, backend_root: str):
+        """Seeds the repository from data/demo_cases.json when PDFs are not available."""
+        import os, json, uuid
+        demo_path = os.path.join(backend_root, "data", "demo_cases.json")
+        if not os.path.exists(demo_path):
+            logger.warning("demo_cases.json not found, starting with empty dataset")
+            return
+
+        try:
+            with open(demo_path, "r", encoding="utf-8") as f:
+                cases = json.load(f)
+
+            for case in cases:
+                record = {
+                    "report_id": case.get("report_id") or f"OIL-{uuid.uuid4().hex[:8].upper()}",
+                    "external_ref": case.get("external_ref", ""),
+                    "title": case.get("title", f"{case.get('site', 'Site')} — HSE Safety Precursor Assessment"),
+                    "report_type": case.get("report_type", "NEAR_MISS"),
+                    "report_date": case.get("report_date", "2026-01-01"),
+                    "site": case.get("site", ""),
+                    "activity": case.get("activity", ""),
+                    "narrative_text": case.get("narrative_text", ""),
+                    "actual_severity": case.get("actual_severity", "NONE"),
+                    "contractor_involved": bool(case.get("contractor_involved", False)),
+                    "difficulty_category": case.get("difficulty_category", "demo"),
+                    "extraction": {
+                        "hazard": case.get("hazard", ""),
+                        "energy_type": case.get("energy_type", ""),
+                        "energy_level": case.get("energy_level", ""),
+                        "exposure_present": case.get("exposure_present", False),
+                        "exposure_description": case.get("exposure_description", ""),
+                        "proximity": case.get("proximity", ""),
+                        "activity_criticality": case.get("activity_criticality", ""),
+                        "barrier": case.get("barrier", ""),
+                        "barrier_failure_type": case.get("barrier_failure_type", ""),
+                        "potential_consequence": case.get("potential_consequence", ""),
+                        "evidence_sentence": case.get("evidence_sentence", ""),
+                        "process_safety_relevant": case.get("process_safety_relevant", False),
+                    },
+                    "assessment": {
+                        "sif_potential_label": case.get("sif_potential_label", "LOW"),
+                        "raw_score": float(case.get("raw_score", 0.0)),
+                        "confidence": float(case.get("confidence", 0.5)),
+                    },
+                    "rule_mappings": [{"life_saving_rule": case.get("life_saving_rule", "")}] if case.get("life_saving_rule") else [],
+                    "precursor_chain": {},
+                    "embedding": [],
+                    "extracted_images": [],
+                    "version_tags": {},
+                    "review_status": "PENDING",
+                    "reviewed_by": None,
+                    "review_decision": None,
+                    "review_comment": None,
+                }
+                self.save_report(record)
+
+            logger.info(f"Seeded {len(cases)} reports from demo_cases.json")
+        except Exception as e:
+            logger.warning(f"Failed to seed from demo_cases.json: {e}")
         
         self.load_from_db()
 
